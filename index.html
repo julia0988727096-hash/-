@@ -259,6 +259,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
 .bbar2{height:5px;background:var(--bdr);border-radius:3px;overflow:hidden;margin-bottom:5px;}
 .bbar2-f{height:100%;border-radius:3px;transition:width .5s;}
 .bgt-sb{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);}
+
+/* ══ TRANSFER & ETF ══ */
+.tbtn2.atr{background:#5AC8FA;color:#fff;}
+.tx-amt.transfer{color:#5AC8FA;}
+.etf-card{background:var(--card);border-radius:13px;padding:13px 14px;display:flex;
+  align-items:center;gap:11px;box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:9px;}
+.etf-ico{width:40px;height:40px;border-radius:12px;
+  background:linear-gradient(135deg,#00B894,#0984E3);
+  display:flex;align-items:center;justify-content:center;font-size:19px;}
+.etf-bd{flex:1;}
+.etf-nm{font-size:13px;font-weight:700;}
+.etf-sb{font-size:11px;color:var(--sub);margin-top:2px;}
+.etf-bal{font-size:15px;font-weight:800;color:var(--inc);}
 </style>
 </head>
 <body>
@@ -324,13 +337,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
       <div class="nc-l">淨資產</div>
       <div class="nc-v" id="net-worth">NT$0</div>
       <div class="nc-row">
-        <div class="nc-item"><div class="nil">總資產</div><div class="niv" id="total-assets">NT$0</div></div>
+        <div class="nc-item"><div class="nil">帳戶</div><div class="niv" id="total-assets">NT$0</div></div>
+        <div class="nc-item"><div class="nil">ETF投資</div><div class="niv" id="total-etf">NT$0</div></div>
         <div class="nc-item"><div class="nil">信用負債</div><div class="niv" id="total-debt">NT$0</div></div>
       </div>
     </div>
     <div class="a-tabs">
       <button class="at active" id="at-acc" onclick="switchAssetTab('acc')">💰 帳戶</button>
       <button class="at" id="at-cc" onclick="switchAssetTab('cc')">💳 信用卡</button>
+      <button class="at" id="at-etf" onclick="switchAssetTab('etf')">📈 ETF</button>
     </div>
     <div class="a-panel active" id="ap-acc">
       <div id="acc-list"></div>
@@ -339,6 +354,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
     <div class="a-panel" id="ap-cc">
       <div id="cc-list"></div>
       <button class="add-btn" onclick="openAssetSheet('cc')">＋ 新增信用卡</button>
+    </div>
+    <div class="a-panel" id="ap-etf">
+      <div id="etf-list"></div>
     </div>
   </div>
 </div>
@@ -430,6 +448,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
     <div class="type-row">
       <button class="tbtn2 ae" id="at-exp" onclick="setAddType('expense')">💸 支出</button>
       <button class="tbtn2"    id="at-inc" onclick="setAddType('income')">💰 收入</button>
+      <button class="tbtn2"    id="at-tr"  onclick="setAddType('transfer')">🔄 轉帳</button>
     </div>
     <div class="amt-row">
       <div class="amt-sy">NT$</div>
@@ -472,6 +491,7 @@ const CATS={
     {key:'寵物',icon:'🐾',bg:'#FFF0F2',sub:[{key:'飼料',icon:'🥣'},{key:'醫療',icon:'🏥'},{key:'美容',icon:'✂️'},{key:'玩具',icon:'🎾'},{key:'用品',icon:'🐾'}]},
     {key:'旅遊',icon:'✈️',bg:'#FFF8E1',sub:[{key:'住宿',icon:'🏨'},{key:'景點',icon:'🗼'},{key:'餐飲',icon:'🍽️'},{key:'購物',icon:'🛍️'},{key:'交通',icon:'🚌'}]},
     {key:'其他',icon:'📦',bg:'#ECEFF1',sub:[{key:'捐款',icon:'❤️'},{key:'罰款',icon:'⚠️'},{key:'手續費',icon:'💸'},{key:'保險',icon:'🛡️'},{key:'雜費',icon:'📦'}]},
+    {key:'ETF/股票',icon:'📈',bg:'#E8F5E9',sub:[{key:'台積電',icon:'🏭'},{key:'元大台灣50',icon:'🇹🇼'},{key:'元大高股息',icon:'💰'},{key:'國泰永續高股息',icon:'🌱'},{key:'美股ETF',icon:'🇺🇸'},{key:'台股',icon:'📊'},{key:'虛擬貨幣',icon:'₿'},{key:'其他',icon:'💹'}]},
   ],
   income:[
     {key:'薪資',icon:'💼',bg:'#E8F5E9',sub:[{key:'底薪',icon:'💵'},{key:'加班費',icon:'⏰'},{key:'獎金',icon:'🏆'},{key:'年終',icon:'🎉'}]},
@@ -511,7 +531,7 @@ let theme  = localStorage.getItem('theme')||'purple';
 let cMon=new Date().getMonth(), cYr=new Date().getFullYear();
 
 // add form
-let aType='expense', aMain=null, aSub='', aPay='', aStep=0;
+let aType='expense', aMain=null, aSub='', aPay='', aStep=0, aTransFrom='', aTransTo='';
 // asset form
 let asTab='acc';
 // fixed form
@@ -622,9 +642,24 @@ function renderBudgetStrip(exp){
 }
 
 function buildTxRow(tx){
-  const info=catOf(tx.type,tx.mainCat);
   const d=new Date(tx.date);
   const ts=`${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+  if(tx.type==='transfer'){
+    const fromA=ACCS.find(a=>a.id===tx.fromAcc)||{name:tx.fromAcc||'帳戶',icon:'🏦'};
+    const toA=ACCS.find(a=>a.id===tx.toAcc)||{name:tx.toAcc||'帳戶',icon:'🏦'};
+    return `<div class="tx-row" id="tx-${tx.id}">
+      <div class="tx-ico" style="background:#E3F2FD">🔄</div>
+      <div class="tx-bd">
+        <div class="tx-nm">${fromA.name} → ${toA.name}${tx.note?' · '+tx.note:''}</div>
+        <div class="tx-mt">${ts} <span class="tx-tag">轉帳</span></div>
+      </div>
+      <div class="tx-rt">
+        <div class="tx-amt transfer">${fmt(tx.amount)}</div>
+        <div class="tx-del" onclick="delTx('${tx.id}')">刪除</div>
+      </div>
+    </div>`;
+  }
+  const info=catOf(tx.type,tx.mainCat);
   const path=tx.subCat?`${tx.mainCat} › ${tx.subCat}`:tx.mainCat;
   const payIcon=(PAYS.find(p=>p.key===tx.payment)||{icon:'📱'}).icon;
   const sign=tx.type==='income'?'+':'-';
@@ -667,13 +702,39 @@ function renderRecList(){
     </div>`).join('');
 }
 
+function renderETFList(){
+  const el=document.getElementById('etf-list'); if(!el) return;
+  const etfTxs=TXS.filter(t=>t.mainCat==='ETF/股票'&&t.type==='expense');
+  if(!etfTxs.length){
+    el.innerHTML=`<div style="color:var(--sub);font-size:13px;padding:8px 0">
+      尚無ETF/股票記錄<br>
+      <span style="font-size:12px">在記帳中選「ETF/股票」分類即可自動記錄</span>
+    </div>`; return;
+  }
+  const grp={};
+  etfTxs.forEach(t=>{const k=t.subCat||'其他'; grp[k]=(grp[k]||0)+t.amount;});
+  const total=Object.values(grp).reduce((s,v)=>s+v,0);
+  el.innerHTML=Object.entries(grp).sort((a,b)=>b[1]-a[1]).map(([name,amt])=>`
+    <div class="etf-card">
+      <div class="etf-ico">📈</div>
+      <div class="etf-bd">
+        <div class="etf-nm">${name}</div>
+        <div class="etf-sb">佔比 ${(amt/total*100).toFixed(1)}%・共 ${TXS.filter(t=>t.mainCat==='ETF/股票'&&t.subCat===name).length} 筆</div>
+      </div>
+      <div class="etf-bal">${fmt(amt)}</div>
+    </div>`).join('');
+}
+
 function renderAssets(){
   const totalAcc=ACCS.reduce((s,a)=>s+a.balance,0);
   const totalDebt=CCS.reduce((s,c)=>s+c.used,0);
-  const net=totalAcc-totalDebt;
+  const totalETF=TXS.filter(t=>t.mainCat==='ETF/股票'&&t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const net=totalAcc+totalETF-totalDebt;
   const nw=document.getElementById('net-worth'); if(nw) nw.textContent=fmt(net);
   const ta=document.getElementById('total-assets'); if(ta) ta.textContent=fmt(totalAcc);
+  const te=document.getElementById('total-etf'); if(te) te.textContent=fmt(totalETF);
   const td=document.getElementById('total-debt'); if(td) td.textContent=fmt(totalDebt);
+  renderETFList();
   // accounts
   const al=document.getElementById('acc-list'); if(al){
     al.innerHTML=ACCS.length?ACCS.map(a=>`
@@ -793,26 +854,45 @@ function renderFixedList(){
 
 /* ═══ ADD TRANSACTION ═══ */
 function openAddSheet(){
-  aType='expense'; aMain=null; aSub=''; aPay=''; aStep=0;
+  aType='expense'; aMain=null; aSub=''; aPay=''; aStep=0; aTransFrom=''; aTransTo='';
   document.getElementById('at-exp').className='tbtn2 ae';
   document.getElementById('at-inc').className='tbtn2';
+  document.getElementById('at-tr').className='tbtn2';
   document.getElementById('add-amt').value='';
   renderAddStep();
   document.getElementById('add-ov').classList.add('open');
 }
 
 function setAddType(t){
-  aType=t; aMain=null; aSub=''; aPay=''; aStep=0;
+  aType=t; aMain=null; aSub=''; aPay=''; aStep=0; aTransFrom=''; aTransTo='';
   document.getElementById('at-exp').className='tbtn2'+(t==='expense'?' ae':'');
   document.getElementById('at-inc').className='tbtn2'+(t==='income'?' ai':'');
+  document.getElementById('at-tr').className='tbtn2'+(t==='transfer'?' atr':'');
   renderAddStep();
 }
 
 function renderAddStep(){
   const el=document.getElementById('add-steps'); if(!el) return;
+  if(aType==='transfer'){ el.innerHTML=buildTransferStep(); return; }
   if(aStep===0) el.innerHTML=buildAS0();
   else if(aStep===1) el.innerHTML=buildAS1();
   else el.innerHTML=buildAS2();
+}
+
+function buildTransferStep(){
+  if(!ACCS.length) return `<div class="empty"><div class="ei">🏦</div><p>請先到「資產」頁新增帳戶</p></div>`;
+  const accBtns=id=>ACCS.map(a=>`
+    <div class="pg ${id==='from'&&aTransFrom===a.id||id==='to'&&aTransTo===a.id?'sel':''}"
+      onclick="${id==='from'?'aTransFrom':'aTransTo'}='${a.id}';renderAddStep()">
+      <div class="pg-i">${a.icon||'🏦'}</div>
+      <div class="pg-l" style="font-size:10px">${a.name}</div>
+    </div>`).join('');
+  return `<div class="slbl"><div class="snum">1</div> 轉出帳戶</div>
+    <div class="pgrid">${accBtns('from')}</div>
+    <div class="slbl"><div class="snum">2</div> 轉入帳戶</div>
+    <div class="pgrid">${accBtns('to')}</div>
+    <div class="ni-row"><input class="ni" type="text" id="add-note" placeholder="備註（選填）"></div>
+    <button class="sbtn" style="background:#5AC8FA" onclick="doAdd()">轉帳完成 ✓</button>`;
 }
 
 function buildAS0(){
@@ -850,10 +930,24 @@ function pickAPay(k){ aPay=k; renderAddStep(); }
 function doAdd(){
   const amt=parseFloat(document.getElementById('add-amt').value);
   if(!amt||amt<=0){ document.getElementById('add-amt').style.color='var(--exp)'; setTimeout(()=>document.getElementById('add-amt').style.color='',600); return; }
+  const note=(document.getElementById('add-note')||{value:''}).value.trim();
+  if(aType==='transfer'){
+    if(!aTransFrom){alert('請選擇轉出帳戶');return;}
+    if(!aTransTo){alert('請選擇轉入帳戶');return;}
+    if(aTransFrom===aTransTo){alert('轉出和轉入帳戶不能相同');return;}
+    const fromA=ACCS.find(a=>a.id===aTransFrom);
+    const toA=ACCS.find(a=>a.id===aTransTo);
+    if(fromA) fromA.balance-=amt;
+    if(toA) toA.balance+=amt;
+    saveA();
+    TXS.unshift({id:sid(),type:'transfer',amount:amt,fromAcc:aTransFrom,toAcc:aTransTo,note,date:new Date().toISOString()});
+    save(); closeOv('add-ov'); renderAll();
+    if(navigator.vibrate) navigator.vibrate(30);
+    return;
+  }
   if(!aMain){ alert('請選擇分類'); aStep=0; renderAddStep(); return; }
   if(!aSub){ alert('請選擇細項'); aStep=1; renderAddStep(); return; }
   if(!aPay){ alert('請選擇支付方式'); return; }
-  const note=(document.getElementById('add-note')||{value:''}).value.trim();
   TXS.unshift({id:sid(),type:aType,amount:amt,mainCat:aMain.key,subCat:aSub,payment:aPay,note,date:new Date().toISOString()});
   save(); closeOv('add-ov'); renderAll();
   if(navigator.vibrate) navigator.vibrate(30);
@@ -992,7 +1086,18 @@ function toggleFixed(id,v){ const f=FIXED.find(x=>x.id===id); if(f){f.active=v;s
 function delFixed(id){ if(!confirm('確定刪除？')) return; FIXED=FIXED.filter(f=>f.id!==id); saveF(); renderFixedList(); }
 
 /* ═══ CRUD ═══ */
-function delTx(id){ if(!confirm('確定刪除？')) return; TXS=TXS.filter(t=>t.id!==id); save(); renderAll(); }
+function delTx(id){
+  if(!confirm('確定刪除？')) return;
+  const tx=TXS.find(t=>t.id===id);
+  if(tx && tx.type==='transfer'){
+    const fromA=ACCS.find(a=>a.id===tx.fromAcc);
+    const toA=ACCS.find(a=>a.id===tx.toAcc);
+    if(fromA) fromA.balance+=tx.amount;
+    if(toA) toA.balance-=tx.amount;
+    saveA();
+  }
+  TXS=TXS.filter(t=>t.id!==id); save(); renderAll();
+}
 
 /* ═══ NAV ═══ */
 function switchPage(p){
@@ -1010,8 +1115,10 @@ function switchAssetTab(t){
   asTab=t;
   document.getElementById('at-acc').classList.toggle('active',t==='acc');
   document.getElementById('at-cc').classList.toggle('active',t==='cc');
+  document.getElementById('at-etf').classList.toggle('active',t==='etf');
   document.getElementById('ap-acc').classList.toggle('active',t==='acc');
   document.getElementById('ap-cc').classList.toggle('active',t==='cc');
+  document.getElementById('ap-etf').classList.toggle('active',t==='etf');
 }
 
 function chMon(d){ cMon+=d; if(cMon>11){cMon=0;cYr++;} if(cMon<0){cMon=11;cYr--;} renderAll(); }
