@@ -1139,8 +1139,10 @@ function clearData(){ if(!confirm(`確定清除 ${mLbl()} 所有記錄？`)) ret
 
 /* ═══ SAMPLE DATA ═══ */
 (function(){
-  if(TXS.length || localStorage.getItem('inited')) return;
+  // 只在完全第一次（所有資料都空）才加範例，之後永遠跳過
+  const fresh=!TXS.length&&!ACCS.length&&!CCS.length&&!localStorage.getItem('inited');
   localStorage.setItem('inited','1');
+  if(!fresh) return;
   const now=new Date();
   [
     {type:'expense',mainCat:'餐飲',subCat:'早餐',payment:'現金',amount:55,note:'豆漿蛋餅',ago:0},
