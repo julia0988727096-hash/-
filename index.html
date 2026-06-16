@@ -260,6 +260,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
 .bbar2-f{height:100%;border-radius:3px;transition:width .5s;}
 .bgt-sb{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);}
 
+/* ══ ADD MODAL (centered) ══ */
+#add-ov,#fixed-ov{align-items:center;justify-content:center;}
+#add-ov .sheet,#fixed-ov .sheet{border-radius:20px;width:92%;max-width:400px;
+  max-height:88vh;padding-bottom:16px;
+  animation:sPop .28s cubic-bezier(.34,1.56,.64,1);}
+@keyframes sPop{from{transform:scale(.88);opacity:0}to{transform:scale(1);opacity:1}}
+/* Main category grid */
+.mcat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 14px 12px;}
+.mc2{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;
+  padding:8px 4px;border-radius:12px;border:2px solid transparent;background:var(--bg);}
+.mc2.sel{border-color:var(--pr);background:rgba(var(--pr-rgb),.08);}
+.mc2:active{transform:scale(.92);}
+.mc2-i{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;}
+.mc2-l{font-size:10px;color:var(--sub);font-weight:500;text-align:center;line-height:1.2;}
+
 /* ══ TRANSFER & ETF ══ */
 .tbtn2.atr{background:#5AC8FA;color:#fff;}
 .tx-amt.transfer{color:#5AC8FA;}
@@ -897,10 +912,10 @@ function buildTransferStep(){
 
 function buildAS0(){
   return `<div class="slbl"><div class="snum">1</div> 選擇分類</div>
-    <div class="hsc">${CATS[aType].map(c=>`
-      <div class="mc" onclick="pickAMain('${c.key}')">
-        <div class="mc-i" style="background:${c.bg}">${c.icon}</div>
-        <div class="mc-l">${c.key}</div>
+    <div class="mcat-grid">${CATS[aType].map(c=>`
+      <div class="mc2" onclick="pickAMain('${c.key}')">
+        <div class="mc2-i" style="background:${c.bg}">${c.icon}</div>
+        <div class="mc2-l">${c.key}</div>
       </div>`).join('')}</div>`;
 }
 function buildAS1(){
@@ -1044,10 +1059,10 @@ function renderFixedStep(){
   const el=document.getElementById('fixed-steps'); if(!el) return;
   if(!fMain){
     el.innerHTML=`<div class="slbl"><div class="snum">1</div> 選擇分類</div>
-      <div class="hsc">${CATS[fType].map(c=>`
-        <div class="mc" onclick="pickFMain('${c.key}')">
-          <div class="mc-i" style="background:${c.bg}">${c.icon}</div>
-          <div class="mc-l">${c.key}</div>
+      <div class="mcat-grid">${CATS[fType].map(c=>`
+        <div class="mc2" onclick="pickFMain('${c.key}')">
+          <div class="mc2-i" style="background:${c.bg}">${c.icon}</div>
+          <div class="mc2-l">${c.key}</div>
         </div>`).join('')}</div>`;
   } else if(!fSub){
     el.innerHTML=`<div class="slbl"><button class="sbk" onclick="fMain=null;renderFixedStep()">‹</button><div class="snum">2</div> ${fMain.icon} ${fMain.key}</div>
