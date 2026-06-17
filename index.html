@@ -275,6 +275,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
 .mc2-i{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;}
 .mc2-l{font-size:10px;color:var(--sub);font-weight:500;text-align:center;line-height:1.2;}
 
+/* ══ LOCK SCREEN ══ */
+.lock-scr{position:fixed;inset:0;z-index:9999;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;}
+.lock-scr.hidden{display:none;}
+.lock-logo{font-size:56px;margin-bottom:10px;}
+.lock-ttl{font-size:22px;font-weight:800;margin-bottom:4px;}
+.lock-sub{font-size:13px;color:var(--sub);margin-bottom:32px;}
+.pin-dots{display:flex;gap:18px;margin-bottom:32px;}
+.pin-dot{width:15px;height:15px;border-radius:50%;border:2.5px solid var(--pr);transition:background .15s;}
+.pin-dot.filled{background:var(--pr);}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:252px;}
+.np-btn{height:68px;border-radius:50%;border:none;background:var(--card);
+  font-size:24px;font-weight:500;cursor:pointer;color:var(--tx);
+  box-shadow:0 2px 8px rgba(0,0,0,.08);transition:all .12s;}
+.np-btn:active{transform:scale(.9);background:var(--bdr);}
+.np-btn.del{font-size:20px;background:transparent;box-shadow:none;}
+.np-btn.empty{background:transparent;box-shadow:none;pointer-events:none;}
+.lock-err{color:var(--exp);font-size:13px;margin-top:14px;min-height:18px;font-weight:500;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(10px)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
+
 /* ══ TRANSFER & ETF ══ */
 .tbtn2.atr{background:#5AC8FA;color:#fff;}
 .tx-amt.transfer{color:#5AC8FA;}
@@ -442,7 +462,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
         </div>
       </div>
     </div>
-    <div style="text-align:center;padding:24px;color:var(--sub);font-size:12px">記帳小幫手 v4.0 💜</div>
+    <div class="set-sec" style="margin-top:14px">
+      <div class="set-ttl">安全</div>
+      <div class="set-list">
+        <div class="set-row" onclick="openPinSheet()">
+          <div class="set-ic" style="background:#EDE7F6">🔐</div>
+          <div class="set-bd"><div class="set-t">APP 密碼鎖</div><div class="set-s" id="pin-status">未啟用</div></div>
+          <div class="set-ar">›</div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;padding:24px;color:var(--sub);font-size:12px">記帳小幫手 v5.0 💜</div>
   </div>
 </div>
 
@@ -453,6 +483,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
   <button class="nv"        id="nav-assets"   onclick="switchPage('assets')"  ><span class="ni2">💼</span>資產</button>
   <button class="nv"        id="nav-analysis" onclick="switchPage('analysis')"><span class="ni2">📊</span>分析</button>
   <button class="nv"        id="nav-settings" onclick="switchPage('settings')"><span class="ni2">⚙️</span>設定</button>
+</div>
+
+<!-- ════════ LOCK SCREEN ════════ -->
+<div id="lock-scr" class="lock-scr hidden">
+  <div class="lock-logo">🔐</div>
+  <div class="lock-ttl">記帳小幫手</div>
+  <div class="lock-sub">請輸入 4 位數密碼</div>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="numpad">
+    <button class="np-btn" onclick="pinInput('1')">1</button>
+    <button class="np-btn" onclick="pinInput('2')">2</button>
+    <button class="np-btn" onclick="pinInput('3')">3</button>
+    <button class="np-btn" onclick="pinInput('4')">4</button>
+    <button class="np-btn" onclick="pinInput('5')">5</button>
+    <button class="np-btn" onclick="pinInput('6')">6</button>
+    <button class="np-btn" onclick="pinInput('7')">7</button>
+    <button class="np-btn" onclick="pinInput('8')">8</button>
+    <button class="np-btn" onclick="pinInput('9')">9</button>
+    <button class="np-btn empty"></button>
+    <button class="np-btn" onclick="pinInput('0')">0</button>
+    <button class="np-btn del" onclick="pinDel()">⌫</button>
+  </div>
+  <div class="lock-err" id="lock-err"></div>
+</div>
+
+<!-- ════════ PIN SETUP SHEET ════════ -->
+<div class="ov" id="pin-ov" onclick="closeOvOutside(event,'pin-ov')">
+  <div class="sheet">
+    <div class="s-hnd"></div>
+    <div class="s-ttl" id="pin-s-ttl">APP 密碼鎖</div>
+    <div id="pin-form"></div>
+  </div>
 </div>
 
 <!-- ════════ ADD TRANSACTION SHEET ════════ -->
@@ -1100,6 +1167,74 @@ function saveFixed(){
 function toggleFixed(id,v){ const f=FIXED.find(x=>x.id===id); if(f){f.active=v;saveF();} }
 function delFixed(id){ if(!confirm('確定刪除？')) return; FIXED=FIXED.filter(f=>f.id!==id); saveF(); renderFixedList(); }
 
+/* ═══ PIN LOCK ═══ */
+let pinBuf='';
+function checkLock(){
+  if(!localStorage.getItem('pin')) return;
+  document.getElementById('lock-scr').classList.remove('hidden');
+}
+function pinInput(n){
+  if(pinBuf.length>=4) return;
+  pinBuf+=n; updPinDots();
+  if(pinBuf.length===4) verifyPin();
+}
+function pinDel(){
+  pinBuf=pinBuf.slice(0,-1); updPinDots();
+  document.getElementById('lock-err').textContent='';
+}
+function updPinDots(){
+  for(let i=0;i<4;i++){const d=document.getElementById('pd'+i);if(d)d.classList.toggle('filled',i<pinBuf.length);}
+}
+function verifyPin(){
+  if(pinBuf===localStorage.getItem('pin')){
+    document.getElementById('lock-scr').classList.add('hidden');
+    pinBuf=''; updPinDots();
+  } else {
+    document.getElementById('lock-err').textContent='密碼錯誤，請重試';
+    const dots=document.getElementById('pin-dots');
+    dots.style.animation='shake .4s';
+    setTimeout(()=>{dots.style.animation='';pinBuf='';updPinDots();},450);
+  }
+}
+function renderPinStatus(){
+  const el=document.getElementById('pin-status');
+  if(el) el.textContent=localStorage.getItem('pin')?'已啟用 🔒':'未啟用';
+}
+function openPinSheet(){
+  const hasPIN=!!localStorage.getItem('pin');
+  const ttl=document.getElementById('pin-s-ttl'); if(ttl) ttl.textContent='APP 密碼鎖';
+  const frm=document.getElementById('pin-form'); if(!frm) return;
+  if(!hasPIN){
+    frm.innerHTML=`
+      <div style="padding:14px 16px 6px;font-size:13px;color:var(--sub)">設定 4 位數字密碼</div>
+      <div class="ni-row"><input class="ni" type="password" inputmode="numeric" maxlength="4" id="new-pin" placeholder="輸入新密碼（4位數字）"></div>
+      <div class="ni-row"><input class="ni" type="password" inputmode="numeric" maxlength="4" id="cfm-pin" placeholder="再輸入一次確認"></div>
+      <button class="sbtn" style="background:var(--pr);margin-top:6px" onclick="savePin()">啟用密碼鎖</button>`;
+  } else {
+    frm.innerHTML=`
+      <div style="padding:14px 16px 6px;font-size:13px;color:var(--sub)">密碼鎖已啟用</div>
+      <div class="ni-row"><input class="ni" type="password" inputmode="numeric" maxlength="4" id="new-pin" placeholder="輸入新密碼（如需變更）"></div>
+      <div class="ni-row"><input class="ni" type="password" inputmode="numeric" maxlength="4" id="cfm-pin" placeholder="再輸入一次確認"></div>
+      <button class="sbtn" style="background:var(--pr);margin-top:6px" onclick="savePin()">變更密碼</button>
+      <button class="sbtn" style="background:var(--exp);margin-top:4px" onclick="removePin()">關閉密碼鎖</button>`;
+  }
+  document.getElementById('pin-ov').classList.add('open');
+}
+function savePin(){
+  const np=(document.getElementById('new-pin')||{value:''}).value.trim();
+  const cp=(document.getElementById('cfm-pin')||{value:''}).value.trim();
+  if(!/^\d{4}$/.test(np)){alert('請輸入 4 位數字');return;}
+  if(np!==cp){alert('兩次密碼不一致');return;}
+  localStorage.setItem('pin',np);
+  closeOv('pin-ov'); renderPinStatus();
+  alert('密碼設定成功！');
+}
+function removePin(){
+  if(!confirm('確定關閉密碼鎖？')) return;
+  localStorage.removeItem('pin');
+  closeOv('pin-ov'); renderPinStatus();
+}
+
 /* ═══ CRUD ═══ */
 function delTx(id){
   if(!confirm('確定刪除？')) return;
@@ -1182,9 +1317,11 @@ function clearData(){ if(!confirm(`確定清除 ${mLbl()} 所有記錄？`)) ret
 })();
 
 /* ═══ INIT ═══ */
+checkLock();
 applyTheme(theme);
 applyFixedTx();
 renderAll();
+renderPinStatus();
 </script>
 </body>
 </html>
