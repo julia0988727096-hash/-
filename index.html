@@ -1381,8 +1381,25 @@ function uploadAvatar(input){
   const file=input.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=function(e){
-    localStorage.setItem('avatar',e.target.result);
-    showAvatar(e.target.result);
+    const img=new Image();
+    img.onload=function(){
+      // 壓縮到最大 300x300，轉 JPEG
+      const MAX=300;
+      const ratio=Math.min(MAX/img.width, MAX/img.height, 1);
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.width*ratio);
+      canvas.height=Math.round(img.height*ratio);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      const b64=canvas.toDataURL('image/jpeg',0.85);
+      try{
+        localStorage.setItem('avatar',b64);
+        showAvatar(b64);
+      } catch(err){
+        alert('照片太大，請選較小的圖片');
+      }
+    };
+    img.onerror=function(){ alert('此格式不支援，請改用 JPG 或 PNG'); };
+    img.src=e.target.result;
   };
   reader.readAsDataURL(file);
 }
